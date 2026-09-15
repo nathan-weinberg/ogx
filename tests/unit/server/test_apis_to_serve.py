@@ -8,11 +8,11 @@ from unittest.mock import AsyncMock, Mock
 
 from ogx.core.datatypes import StackConfig
 from ogx.core.server.fastapi_router_registry import collect_api_routes
-from ogx.core.server.server import StackApp, apis_to_serve, lifespan
+from ogx.core.server.server import ALWAYS_SERVED_APIS, StackApp, apis_to_serve, lifespan
 from ogx_api import Api
 
 # Served regardless of `apis:`, so every expectation below is stated relative to them.
-UNGATED_APIS = {"admin", "conversations", "inspect", "prompts", "providers"}
+UNGATED_APIS = set(ALWAYS_SERVED_APIS)
 
 
 def make_impls(*apis: Api) -> dict[Api, object]:
@@ -21,9 +21,9 @@ def make_impls(*apis: Api) -> dict[Api, object]:
 
 def test_absent_apis_list_serves_every_impl():
     config = StackConfig(distro_name="test", providers={})
-    impls = make_impls(Api.inference, Api.responses)
+    impls = make_impls(Api.inference, Api.responses, Api.conversations)
 
-    assert apis_to_serve(config, impls) == {"inference", "responses", "models"} | UNGATED_APIS
+    assert apis_to_serve(config, impls) == {"inference", "responses", "conversations", "models"} | UNGATED_APIS
 
 
 def test_empty_apis_list_serves_no_provider_backed_api():
@@ -40,6 +40,29 @@ def test_explicit_apis_list_serves_only_what_it_names():
 
     assert "responses" in served
     assert "inference" not in served
+
+
+def test_conversations_is_served_when_listed():
+    config = StackConfig(distro_name="test", apis=["responses", "conversations"], providers={})
+
+    assert "conversations" in apis_to_serve(config, make_impls(Api.responses, Api.conversations))
+
+
+def test_conversations_is_not_served_when_omitted():
+    """A gateway deployment that serves /v1/conversations itself must be able to turn it off."""
+    config = StackConfig(distro_name="test", apis=["responses"], providers={})
+
+    # The impl stays available in-process for providers that depend on it.
+    served = apis_to_serve(config, make_impls(Api.responses, Api.conversations))
+
+    assert "conversations" not in served
+    assert "responses" in served
+
+
+def test_administration_apis_are_served_even_when_omitted():
+    config = StackConfig(distro_name="test", apis=["inference"], providers={})
+
+    assert UNGATED_APIS <= apis_to_serve(config, make_impls(Api.inference))
 
 
 def test_routing_table_api_follows_its_router_api():
@@ -87,8 +110,7 @@ async def test_lifespan_empty_apis_list_registers_no_provider_routers():
 
     assert not any(path.startswith("/v1/responses") for path in paths)
     assert not any(path.startswith("/v1/inference") for path in paths)
-    # Ungated APIs are still served.
-    assert "/v1/conversations" in paths
+    assert "/v1/conversations" not in paths
 
 
 async def test_lifespan_absent_apis_list_registers_provider_routers():
