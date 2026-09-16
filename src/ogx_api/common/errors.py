@@ -18,6 +18,16 @@ def openai_error_type_for_status(status_code: int) -> str:
 
     OpenAI always populates ``error.type``, and clients branch on it, so every
     error body OGX emits should carry one.
+
+    The mapping is deliberately coarse. OpenAI's docs list types such as
+    ``authentication_error`` and ``not_found_error``, but the API itself
+    differentiates those cases through ``error.code`` and leaves ``type`` at
+    ``invalid_request_error``: a 401 for a bad key is
+    ``invalid_request_error``/``invalid_api_key``, and a 404 for an unknown model is
+    ``invalid_request_error``/``model_not_found``. Every OpenAI error body recorded
+    under ``tests/integration/*/recordings/`` uses ``invalid_request_error``. Emitting a
+    finer-grained ``type`` than the upstream API does would break clients that branch on
+    it, so a caller that needs to distinguish these should pass ``code``.
     """
     if status_code == httpx.codes.TOO_MANY_REQUESTS:
         return "rate_limit_error"
