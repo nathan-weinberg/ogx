@@ -145,6 +145,28 @@ async def http_exception_handler(request: Request, exc: Exception) -> JSONRespon
     )
 
 
+def register_exception_handlers(app: FastAPI) -> None:
+    """Install the exception handlers that give every OGX error response its shape.
+
+    Tests that exercise error paths against a bare ``FastAPI()`` should call this rather
+    than registering handlers piecemeal, so that what they assert stays the shape the
+    real server emits.
+    """
+    # Register specific exception handlers before the generic Exception handler
+    # This prevents the re-raising behavior that causes connection resets
+    app.exception_handler(RequestValidationError)(global_exception_handler)
+    app.exception_handler(ConflictError)(global_exception_handler)
+    app.exception_handler(ResourceNotFoundError)(global_exception_handler)
+    app.exception_handler(AuthenticationRequiredError)(global_exception_handler)
+    app.exception_handler(AccessDeniedError)(global_exception_handler)
+    app.exception_handler(BadRequestError)(global_exception_handler)
+    # Covers FastAPI's HTTPException too, plus the 404s and 405s Starlette's router
+    # raises for unregistered paths and methods
+    app.exception_handler(StarletteHTTPException)(http_exception_handler)
+    # Generic Exception handler should be last
+    app.exception_handler(Exception)(global_exception_handler)
+
+
 class StackApp(FastAPI):
     """
     A wrapper around the FastAPI application to hold a reference to the Stack instance so that we can
@@ -560,19 +582,7 @@ def create_app() -> StackApp:
 
     app.add_middleware(ZstdDecompressionMiddleware)
 
-    # Register specific exception handlers before the generic Exception handler
-    # This prevents the re-raising behavior that causes connection resets
-    app.exception_handler(RequestValidationError)(global_exception_handler)
-    app.exception_handler(ConflictError)(global_exception_handler)
-    app.exception_handler(ResourceNotFoundError)(global_exception_handler)
-    app.exception_handler(AuthenticationRequiredError)(global_exception_handler)
-    app.exception_handler(AccessDeniedError)(global_exception_handler)
-    app.exception_handler(BadRequestError)(global_exception_handler)
-    # Covers FastAPI's HTTPException too, plus the 404s and 405s Starlette's router
-    # raises for unregistered paths and methods
-    app.exception_handler(StarletteHTTPException)(http_exception_handler)
-    # Generic Exception handler should be last
-    app.exception_handler(Exception)(global_exception_handler)
+    register_exception_handlers(app)
 
     return app
 
