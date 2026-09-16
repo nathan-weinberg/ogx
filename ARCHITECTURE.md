@@ -214,7 +214,8 @@ Key features:
 - **Explicit HTTP surface**: `apis:` lists the APIs served over HTTP. It gates route
   registration only — omitted APIs are still resolved in-process for providers that
   depend on them. Omitting the key serves everything the providers supply. The stack
-  administration APIs (`admin`, `inspect`, `providers`, `prompts`) are always served.
+  administration APIs (`admin`, `inspect`, `providers`) are always served, and serving
+  `responses` also serves `conversations` and `prompts`.
 
 ### Distributions
 

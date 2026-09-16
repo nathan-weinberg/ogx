@@ -1,7 +1,6 @@
 version: 2
 distro_name: postgres-demo
 apis:
-- conversations
 - responses
 - inference
 - tool_runtime

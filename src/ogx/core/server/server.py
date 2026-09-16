@@ -61,12 +61,16 @@ REPO_ROOT = Path(__file__).parent.parent.parent.parent
 logger = get_logger(name=__name__, category="core::server")
 
 # APIs that administer or describe the stack itself rather than serving inference
-# traffic. They are backed by built-in implementations that never appear in a provider
-# map, so a config's `apis:` list has no way to opt into them and does not gate them.
-# User-facing APIs — including built-in ones such as `conversations` — are gated by
-# `apis:` like any other, so a deployment can stop serving them while keeping the
-# implementation wired up in-process for providers that depend on it.
-ALWAYS_SERVED_APIS = ("admin", "inspect", "providers", "prompts")
+# traffic. Operators need them reachable to diagnose a deployment, so `apis:` cannot opt
+# out of them. (It can still list them; doing so is simply redundant.)
+ALWAYS_SERVED_APIS = ("admin", "inspect", "providers")
+
+# Built-in, user-facing APIs implied by serving `responses`: the builtin responses
+# provider hard-depends on their impls in-process (see providers/registry/responses.py),
+# and OpenAI clients on a responses deployment expect their HTTP surface. A deployment
+# that fronts responses with its own gateway drops `responses` from `apis:`, which turns
+# these off with it.
+RESPONSES_IMPLIED_APIS = ("conversations", "prompts")
 
 
 def warn_with_traceback(
@@ -146,10 +150,14 @@ class StackApp(FastAPI):
 def apis_to_serve(run_config: StackConfig, impls: dict[Api, Any]) -> set[str]:
     """Return the names of the APIs whose HTTP routers should be registered.
 
-    An `apis:` list is authoritative for the user-facing surface. Without one, everything
-    the providers give us is served.
+    An `apis:` list is authoritative for the user-facing surface, except that serving
+    `responses` implies the built-in APIs a responses deployment is expected to expose.
+    Without a list, everything the providers give us is served.
     """
     served = set(run_config.apis) if run_config.apis else {api.value for api in impls}
+
+    if Api.responses.value in served:
+        served.update(RESPONSES_IMPLIED_APIS)
 
     for inf in builtin_automatically_routed_apis():
         # if we do not serve the corresponding router API, we should not serve the routing table API

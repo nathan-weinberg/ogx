@@ -1,7 +1,6 @@
 version: '2'
 distro_name: kubernetes-demo
 apis:
-- conversations
 - responses
 - inference
 - files

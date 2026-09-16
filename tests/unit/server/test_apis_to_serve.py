@@ -7,7 +7,7 @@
 from unittest.mock import Mock
 
 from ogx.core.datatypes import StackConfig
-from ogx.core.server.server import ALWAYS_SERVED_APIS, apis_to_serve
+from ogx.core.server.server import ALWAYS_SERVED_APIS, RESPONSES_IMPLIED_APIS, apis_to_serve
 from ogx_api import Api
 
 
@@ -25,21 +25,35 @@ def test_absent_apis_list_serves_every_impl():
     assert set(ALWAYS_SERVED_APIS) <= served
 
 
-def test_conversations_is_served_when_listed():
-    config = StackConfig(distro_name="test", apis=["responses", "conversations"], providers={})
-
-    assert "conversations" in apis_to_serve(config, make_impls(Api.responses, Api.conversations))
-
-
-def test_conversations_is_not_served_when_omitted():
-    """A gateway deployment that serves /v1/conversations itself must be able to turn it off."""
+def test_serving_responses_implies_conversations_and_prompts():
+    """A responses deployment gets the built-in APIs its clients expect, unlisted."""
     config = StackConfig(distro_name="test", apis=["responses"], providers={})
 
-    # The impl stays available in-process for providers that depend on it.
-    served = apis_to_serve(config, make_impls(Api.responses, Api.conversations))
+    served = apis_to_serve(config, make_impls(Api.responses, Api.conversations, Api.prompts))
+
+    assert set(RESPONSES_IMPLIED_APIS) <= served
+
+
+def test_conversations_is_served_when_listed_without_responses():
+    """Explicitly opting in still works for a deployment that does not serve responses."""
+    config = StackConfig(distro_name="test", apis=["conversations"], providers={})
+
+    served = apis_to_serve(config, make_impls(Api.inference, Api.conversations))
+
+    assert "conversations" in served
+    assert "responses" not in served
+    assert "prompts" not in served
+
+
+def test_responses_less_deployment_serves_neither_implied_api():
+    """The gateway topology: dropping `responses` from `apis:` turns both off with it."""
+    config = StackConfig(distro_name="test", apis=["inference"], providers={})
+
+    served = apis_to_serve(config, make_impls(Api.inference, Api.responses, Api.conversations, Api.prompts))
 
     assert "conversations" not in served
-    assert "responses" in served
+    assert "prompts" not in served
+    assert "responses" not in served
 
 
 def test_administration_apis_are_served_even_when_omitted():
