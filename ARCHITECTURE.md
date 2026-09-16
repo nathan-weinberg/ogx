@@ -215,7 +215,8 @@ Key features:
   authoritative, including when it is empty; omitting the key serves everything the
   providers supply. It gates route registration only — omitted APIs are still resolved
   in-process for providers that depend on them. The stack administration APIs (`admin`,
-  `inspect`, `providers`, `prompts`) are always served.
+  `inspect`, `providers`) are always served, and serving `responses` also serves
+  `conversations` and `prompts`.
 
 ### Distributions
 
