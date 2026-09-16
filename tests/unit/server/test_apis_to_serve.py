@@ -7,8 +7,11 @@
 from unittest.mock import Mock
 
 from ogx.core.datatypes import StackConfig
-from ogx.core.server.server import ALWAYS_SERVED_APIS, apis_to_serve
+from ogx.core.server.server import apis_to_serve
 from ogx_api import Api
+
+# Served regardless of `apis:`, so every expectation below is stated relative to them.
+UNGATED_APIS = {"admin", "conversations", "inspect", "prompts", "providers"}
 
 
 def make_impls(*apis: Api) -> dict[Api, object]:
@@ -19,17 +22,14 @@ def test_absent_apis_list_serves_every_impl():
     config = StackConfig(distro_name="test", providers={})
     impls = make_impls(Api.inference, Api.responses)
 
-    served = apis_to_serve(config, impls)
-
-    assert {"inference", "responses"} <= served
-    assert set(ALWAYS_SERVED_APIS) <= served
+    assert apis_to_serve(config, impls) == {"inference", "responses", "models"} | UNGATED_APIS
 
 
-def test_empty_apis_list_serves_nothing_but_the_always_served_apis():
+def test_empty_apis_list_serves_no_provider_backed_api():
     config = StackConfig(distro_name="test", apis=[], providers={})
     impls = make_impls(Api.inference, Api.responses)
 
-    assert apis_to_serve(config, impls) == set(ALWAYS_SERVED_APIS)
+    assert apis_to_serve(config, impls) == UNGATED_APIS
 
 
 def test_explicit_apis_list_serves_only_what_it_names():

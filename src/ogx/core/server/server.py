@@ -60,11 +60,6 @@ REPO_ROOT = Path(__file__).parent.parent.parent.parent
 
 logger = get_logger(name=__name__, category="core::server")
 
-# APIs served regardless of what `apis:` says. They are backed by built-in
-# implementations rather than by providers, so they never appear in the provider map that
-# generated `apis:` lists are derived from and a config has no way to opt into them.
-ALWAYS_SERVED_APIS = ("admin", "conversations", "inspect", "prompts", "providers")
-
 
 def warn_with_traceback(
     message: Warning | str,
@@ -154,7 +149,11 @@ def apis_to_serve(run_config: StackConfig, impls: dict[Api, Any]) -> set[str]:
             continue
         served.add(inf.routing_table_api.value)
 
-    served.update(ALWAYS_SERVED_APIS)
+    served.add("admin")
+    served.add("inspect")
+    served.add("providers")
+    served.add("prompts")
+    served.add("conversations")
     return served
 
 
