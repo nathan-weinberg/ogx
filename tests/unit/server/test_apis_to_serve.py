@@ -7,6 +7,7 @@
 from unittest.mock import AsyncMock, Mock
 
 from ogx.core.datatypes import StackConfig
+from ogx.core.server.fastapi_router_registry import collect_api_routes
 from ogx.core.server.server import StackApp, apis_to_serve, lifespan
 from ogx_api import Api
 
@@ -74,7 +75,9 @@ def _lifespan_app(config: StackConfig) -> StackApp:
 
 async def _registered_paths(app: StackApp) -> set[str]:
     async with lifespan(app):
-        return {route.path for route in app.routes if hasattr(route, "path")}
+        # collect_api_routes resolves included routers, which newer FastAPI
+        # versions keep nested in app.routes instead of flattening.
+        return {route.path for route in collect_api_routes(app.routes)}
 
 
 async def test_lifespan_empty_apis_list_registers_no_provider_routers():
