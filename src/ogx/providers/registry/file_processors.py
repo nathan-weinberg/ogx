@@ -277,7 +277,7 @@ See [Unstructured's documentation](https://docs.unstructured.io/) for more detai
             api=Api.file_processors,
             provider_type="remote::docling-serve",
             adapter_type="docling-serve",
-            pip_packages=["httpx", "docling-slim[service-client]>=2.117.0"],
+            pip_packages=["httpx2", "docling-slim[service-client]>=2.117.0"],
             module="ogx.providers.remote.file_processor.docling_serve",
             config_class="ogx.providers.remote.file_processor.docling_serve.DoclingServeFileProcessorConfig",
             api_dependencies=[Api.files],
@@ -335,7 +335,7 @@ See [Docling Serve's documentation](https://github.com/docling-project/docling-s
             provider_type="remote::unstructured-api",
             adapter_type="unstructured-api",
             pip_packages=[
-                "unstructured-client>=0.25.0",  # >=0.25.0: supports full feature set (chunking + split_pdf_page_range)
+                "unstructured-client>=0.46.2",  # >=0.25.0: supports full feature set (chunking + split_pdf_page_range)
             ],
             module="ogx.providers.remote.file_processor.unstructured_api",
             config_class="ogx.providers.remote.file_processor.unstructured_api.UnstructuredApiFileProcessorConfig",
